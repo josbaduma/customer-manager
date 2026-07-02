@@ -34,12 +34,20 @@ export default function RootLayout({
               <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">Gestor de Clientes</p>
             </div>
 
-            <a
-              href="/login"
-              className="inline-flex cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-            >
-              Login
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href="/login"
+                className="inline-flex cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                Login
+              </a>
+              <a
+                href="/register"
+                className="inline-flex cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                Registrar
+              </a>
+            </div>
           </div>
         </header>
 
