@@ -29,17 +29,24 @@ function formatDate(date: Date) {
 }
 
 export function Calendar({ selectedDate, onSelectDate }: CalendarProps) {
-  const [currentMonth, setCurrentMonth] = React.useState(() => {
-    const date = new Date(selectedDate || new Date().toISOString());
-    return date.getMonth();
-  });
+  const [currentMonth, setCurrentMonth] = React.useState<number | null>(null);
+  const [currentYear, setCurrentYear] = React.useState<number | null>(null);
 
-  const [currentYear, setCurrentYear] = React.useState(() => {
+  React.useEffect(() => {
     const date = new Date(selectedDate || new Date().toISOString());
-    return date.getFullYear();
-  });
+    setCurrentMonth(date.getMonth());
+    setCurrentYear(date.getFullYear());
+  }, [selectedDate]);
 
   const selected = React.useMemo(() => new Date(selectedDate), [selectedDate]);
+
+  if (currentMonth === null || currentYear === null) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="h-6 w-48 rounded bg-slate-100 dark:bg-slate-900" />
+      </div>
+    );
+  }
 
   const monthStart = new Date(currentYear, currentMonth, 1);
   const firstDayIndex = monthStart.getDay();
