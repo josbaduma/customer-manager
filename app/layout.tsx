@@ -27,7 +27,28 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex min-h-screen flex-col bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+        <header className="border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/90">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+            <div>
+              <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">Gestor de Clientes</p>
+            </div>
+
+            <details className="relative">
+              <summary className="inline-flex cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+                Login
+              </summary>
+              <div className="absolute right-0 z-20 mt-2 min-w-[14rem] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                <a href="#" className="block px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900">
+                  Iniciar sesión
+                </a>
+              </div>
+            </details>
+          </div>
+        </header>
+
+        <main className="flex-1">{children}</main>
+      </body>
     </html>
   );
 }
