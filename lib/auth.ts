@@ -86,26 +86,31 @@ export async function createAuthToken(userId: number) {
 }
 
 export async function verifyAuthToken(token: string) {
+  const payload = await getAuthPayload(token);
+  return payload ? payload.exp > Date.now() : false;
+}
+
+export async function getAuthPayload(token: string) {
   const [encoded, signature] = token.split(".");
   if (!encoded || !signature) {
-    return false;
+    return null;
   }
 
   const expectedSignature = await sign(encoded);
   if (signature.length !== expectedSignature.length) {
-    return false;
+    return null;
   }
 
   const signatureBytes = base64UrlDecode(signature);
   const expectedBytes = base64UrlDecode(expectedSignature);
   if (!constantTimeCompare(signatureBytes, expectedBytes)) {
-    return false;
+    return null;
   }
 
   try {
     const payload = decode<AuthPayload>(encoded);
-    return payload.exp > Date.now();
+    return payload;
   } catch {
-    return false;
+    return null;
   }
 }

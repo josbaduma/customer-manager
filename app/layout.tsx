@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { cookies } from "next/headers";
 import { verifyAuthToken } from "@/lib/auth";
-import { AuthDropdown } from "./components/auth-dropdown";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "./components/app-sidebar";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,20 +36,27 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
-      <body className="min-h-full flex min-h-screen flex-col bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
-        <header className="border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/90">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-            <div>
-              <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">Gestor de Clientes</p>
-            </div>
+      <body className="min-h-full bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+        <SidebarProvider>
+          <AppSidebar />
 
-            <AuthDropdown isLoggedIn={isLoggedIn} />
-          </div>
-        </header>
+          <SidebarInset className="flex min-h-screen flex-col">
+            <header className="border-b border-slate-200 bg-white/90 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/90">
+              <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <SidebarTrigger className="md:hidden" />
+                  <p className="text-lg font-semibold text-slate-950 dark:text-slate-50">
+                    Gestor de Clientes
+                  </p>
+                </div>
+              </div>
+            </header>
 
-        <main className="flex-1">{children}</main>
+            <main className="flex-1">{children}</main>
+          </SidebarInset>
+        </SidebarProvider>
       </body>
     </html>
   );

@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyAuthToken } from "@/lib/auth";
 
-const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register"];
+const publicPaths = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/account"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (publicPaths.some((path) => pathname.startsWith(path))) {

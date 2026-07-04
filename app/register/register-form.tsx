@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState } from "react";
+import type * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "../components/button";
+import { Button } from "@/components/ui/button";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function RegisterForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) {
     event.preventDefault();
     setError("");
 

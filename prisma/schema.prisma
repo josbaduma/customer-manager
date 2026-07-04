@@ -20,25 +20,34 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 }
+
 model Customer {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  email     String   @unique
+  email     String    @unique
   phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
   stores    Store[]
 }
 
 model Store {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   location    String
-  customer    Customer  @relation(fields: [customer_id], references: [id])
+  customer    Customer @relation(fields: [customer_id], references: [id])
   customer_id Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
   bills       Bill[]
+}
+
+enum BillStatus {
+  pending
+  partial
+  paid
 }
 
 model Product {
@@ -53,11 +62,13 @@ model Product {
 }
 
 model Bill {
-  id        Int       @id @default(autoincrement())
-  total     Float
-  store     Store     @relation(fields: [store_id], references: [id])
-  store_id  Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now())
-  products  Product[]
+  id         Int        @id @default(autoincrement())
+  total      Float
+  paidAmount Float      @default(0)
+  status     BillStatus @default(pending)
+  store      Store      @relation(fields: [store_id], references: [id])
+  store_id   Int
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  products   Product[]
 }

@@ -17,6 +17,7 @@ type CustomerWithRelations = Customer & {
 
 async function getCustomers(): Promise<CustomerWithRelations[]> {
   return prisma.customer.findMany({
+    where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
     include: {
       stores: {

@@ -3,10 +3,20 @@
 import * as React from "react";
 import type { Customer } from "../generated/prisma/client";
 import { Button } from "./button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
 import { Dialog } from "./dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { useRouter } from "next/navigation";
 
 type CustomerWithRelations = Customer & {
+  deletedAt?: Date | null;
   stores: Array<{
     id: number;
     name: string;
@@ -14,15 +24,31 @@ type CustomerWithRelations = Customer & {
     bills: Array<{
       id: number;
       total: number;
-      products: Array<{ id: number }>; 
+      products: Array<{ id: number }>;
     }>;
   }>;
 };
 
+type CustomerForm = {
+  id?: number;
+  name: string;
+  email: string;
+  phone: string;
+};
+
+function getInitialFormData(customer?: CustomerWithRelations): CustomerForm {
+  return {
+    id: customer?.id,
+    name: customer?.name ?? "",
+    email: customer?.email ?? "",
+    phone: customer?.phone ?? "",
+  };
+}
+
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-PE", {
+  return new Intl.NumberFormat("es-CR", {
     style: "currency",
-    currency: "USD",
+    currency: "CRC",
     minimumFractionDigits: 0,
   }).format(value);
 }
@@ -32,12 +58,119 @@ interface CustomerDashboardProps {
 }
 
 export function CustomerDashboard({ customers }: CustomerDashboardProps) {
+  const [customerList, setCustomerList] = React.useState<CustomerWithRelations[]>(customers);
   const [openDialog, setOpenDialog] = React.useState(false);
+  const [dialogMode, setDialogMode] = React.useState<"create" | "edit">("create");
+  const [formData, setFormData] = React.useState<CustomerForm>(getInitialFormData());
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const pageSize = 5;
+  const router = useRouter();
 
-  const totalClientes = customers.length;
-  const totalTiendas = customers.reduce((sum, customer) => sum + customer.stores.length, 0);
+  const totalClientes = customerList.length;
+  const totalTiendas = customerList.reduce((sum, customer) => sum + customer.stores.length, 0);
 
-  const customersWithTotals = customers.map((customer) => {
+  const openCreateDialog = () => {
+    setDialogMode("create");
+    setFormData(getInitialFormData());
+    setError(null);
+    setOpenDialog(true);
+  };
+
+  const openEditDialog = (customer: CustomerWithRelations) => {
+    setDialogMode("edit");
+    setFormData(getInitialFormData(customer));
+    setError(null);
+    setOpenDialog(true);
+  };
+
+  const closeDialog = () => {
+    setOpenDialog(false);
+    setFormData(getInitialFormData());
+    setError(null);
+  };
+
+  const handleInputChange = (field: keyof CustomerForm, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSaveCustomer = async () => {
+    if (!formData.name || !formData.email) {
+      setError("Nombre y correo son requeridos.");
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        dialogMode === "create" ? "/api/customers" : `/api/customers/${formData.id}`,
+        {
+          method: dialogMode === "create" ? "POST" : "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone || null,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error ?? "Error al guardar el cliente.");
+        return;
+      }
+
+      const updatedCustomer: CustomerWithRelations = data.customer;
+
+      if (dialogMode === "create") {
+        setCustomerList((current) => [updatedCustomer, ...current]);
+      } else {
+        setCustomerList((current) =>
+          current.map((customer) =>
+            customer.id === updatedCustomer.id ? updatedCustomer : customer,
+          ),
+        );
+      }
+
+      closeDialog();
+    } catch {
+      setError("No se pudo conectar con el servidor.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteCustomer = async (customer: CustomerWithRelations) => {
+    if (!window.confirm(`¿Eliminar al cliente ${customer.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/customers/${customer.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error ?? "Error al eliminar el cliente.");
+        return;
+      }
+
+      setCustomerList((current) => current.filter((item) => item.id !== customer.id));
+    } catch {
+      setError("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const customersWithTotals = customerList.map((customer) => {
     const cobrado = customer.stores.reduce((storeSum, store) => {
       return (
         storeSum +
@@ -76,25 +209,49 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Clientes</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-950 dark:text-slate-50">{totalClientes}</p>
-            </div>
+            <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-[0.24em] text-slate-400">
+                  Clientes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-slate-950 dark:text-slate-50">{totalClientes}</p>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Tiendas</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-950 dark:text-slate-50">{totalTiendas}</p>
-            </div>
+            <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-[0.24em] text-slate-400">
+                  Tiendas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-slate-950 dark:text-slate-50">{totalTiendas}</p>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-3xl border border-slate-200 bg-emerald-100/80 p-6 text-center shadow-sm dark:border-slate-800 dark:bg-emerald-950/10">
-              <p className="text-sm uppercase tracking-[0.24em] text-emerald-700">Cobrado</p>
-              <p className="mt-4 text-3xl font-semibold text-emerald-900 dark:text-emerald-300">{formatCurrency(totalCobrado)}</p>
-            </div>
+            <Card className="border border-slate-200 bg-emerald-100/80 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-[0.24em] text-emerald-700">
+                  Cobrado
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300">{formatCurrency(totalCobrado)}</p>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-3xl border border-slate-200 bg-amber-100/80 p-6 text-center shadow-sm dark:border-slate-800 dark:bg-amber-950/10">
-              <p className="text-sm uppercase tracking-[0.24em] text-amber-700">Pendiente</p>
-              <p className="mt-4 text-3xl font-semibold text-amber-900 dark:text-amber-300">{formatCurrency(totalPendiente)}</p>
-            </div>
+            <Card className="border border-slate-200 bg-amber-100/80 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-[0.24em] text-amber-700">
+                  Pendiente
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-amber-900 dark:text-amber-300">{formatCurrency(totalPendiente)}</p>
+              </CardContent>
+            </Card>
           </div>
         </section>
 
@@ -106,64 +263,125 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
                 Detalles de facturación y tiendas por cliente.
               </p>
             </div>
-            <Button onClick={() => setOpenDialog(true)}>Nuevo cliente</Button>
+            <Button onClick={openCreateDialog}>Nuevo cliente</Button>
           </div>
 
-          <div className="grid gap-4">
-            {customersWithTotals.map(({ customer, cobrado, pendiente, tiendas, camisetas }) => (
-              <article
-                key={customer.id}
-                className="grid gap-6 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-6 shadow-sm transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="grid h-14 w-14 place-items-center rounded-3xl bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-slate-50">
-                      <span className="text-xl">🏬</span>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-950 dark:text-slate-50">{customer.name}</h3>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{customer.email}</p>
-                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 shadow-sm dark:bg-slate-950">
-                          <span>🏬</span>
-                          {tiendas} {tiendas === 1 ? "tienda" : "tiendas"}
-                        </span>
-                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 shadow-sm dark:bg-slate-950">
-                          <span>👕</span>
-                          {camisetas} camisetas
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+          <div className="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+            <Table className="w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <input type="checkbox" aria-label="select all" />
+                  </TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Tiendas</TableHead>
+                  <TableHead>Camisetas</TableHead>
+                  <TableHead className="text-right">Cobrado</TableHead>
+                  <TableHead className="text-right">Pendiente</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(() => {
+                  const start = (currentPage - 1) * pageSize;
+                  const end = start + pageSize;
+                  return customersWithTotals.slice(start, end).map(({ customer, cobrado, pendiente, tiendas, camisetas }) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <input type="checkbox" aria-label={`select-${customer.id}`} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-4">
+                          <div className="grid h-10 w-10 place-items-center rounded-xl bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-slate-50">
+                            <span>🏬</span>
+                          </div>
+                          <div>
+                            <div className="font-semibold">{customer.name}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{customer.email}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{tiendas}</TableCell>
+                      <TableCell>{camisetas}</TableCell>
+                      <TableCell className="text-right text-emerald-800 dark:text-emerald-300">{formatCurrency(cobrado)}</TableCell>
+                      <TableCell className="text-right text-amber-800 dark:text-amber-300">{formatCurrency(pendiente)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="secondary" onClick={() => router.push(`/customers/${customer.id}`)}>
+                            Ver
+                          </Button>
+                          <Button variant="secondary" onClick={() => openEditDialog(customer)}>
+                            Editar
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-300 dark:hover:bg-red-950"
+                            onClick={() => handleDeleteCustomer(customer)}
+                          >
+                            Eliminar
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ));
+                })()}
+              </TableBody>
+            </Table>
 
-                  <div className="grid gap-3 text-right sm:text-left">
-                    <div className="rounded-3xl bg-emerald-50 p-3 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300">
-                      <p className="text-xs uppercase tracking-[0.24em]">Cobrado</p>
-                      <p className="mt-1 text-lg font-semibold">{formatCurrency(cobrado)}</p>
-                    </div>
-                    <div className="rounded-3xl bg-amber-50 p-3 text-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
-                      <p className="text-xs uppercase tracking-[0.24em]">Pendiente</p>
-                      <p className="mt-1 text-lg font-semibold">{formatCurrency(pendiente)}</p>
-                    </div>
-                  </div>
+            <div className="mt-4 flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
+              <div>
+                Mostrando {Math.min(customersWithTotals.length, (currentPage - 1) * pageSize + 1)} - {Math.min(customersWithTotals.length, currentPage * pageSize)} de {customersWithTotals.length} clientes
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+                  Anterior
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.max(1, Math.ceil(customersWithTotals.length / pageSize)) }).map((_, i) => {
+                    const page = i + 1;
+                    return (
+                      <Button
+                        key={page}
+                        variant={page === currentPage ? undefined : "secondary"}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
                 </div>
-              </article>
-            ))}
+                <Button variant="secondary" disabled={currentPage >= Math.ceil(customersWithTotals.length / pageSize)} onClick={() => setCurrentPage((p) => p + 1)}>
+                  Siguiente
+                </Button>
+              </div>
+            </div>
           </div>
         </section>
       </main>
 
       <Dialog
         open={openDialog}
-        onOpenChange={setOpenDialog}
-        title="Nuevo cliente"
-        description="Agrega los datos básicos para registrar un cliente nuevo."
+        onOpenChange={closeDialog}
+        title={dialogMode === "create" ? "Nuevo cliente" : "Editar cliente"}
+        description={
+          dialogMode === "create"
+            ? "Agrega los datos básicos para registrar un cliente nuevo."
+            : "Actualiza los datos del cliente."
+        }
       >
         <div className="space-y-4">
+          {error ? (
+            <div className="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+              {error}
+            </div>
+          ) : null}
+
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
             Nombre
             <input
               type="text"
+              value={formData.name}
+              onChange={(event) => handleInputChange("name", event.target.value)}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
               placeholder="Ej. Distribuidora La Estrella"
             />
@@ -172,6 +390,8 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
             Correo
             <input
               type="email"
+              value={formData.email}
+              onChange={(event) => handleInputChange("email", event.target.value)}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
               placeholder="cliente@empresa.com"
             />
@@ -180,10 +400,20 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
             Teléfono
             <input
               type="tel"
+              value={formData.phone}
+              onChange={(event) => handleInputChange("phone", event.target.value)}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50"
               placeholder="(55) 1234-5678"
             />
           </label>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button onClick={handleSaveCustomer} disabled={isSaving}>
+              {isSaving ? "Guardando..." : dialogMode === "create" ? "Crear cliente" : "Guardar cambios"}
+            </Button>
+            <Button variant="secondary" onClick={closeDialog} className="text-slate-900 dark:text-slate-100">
+              Cancelar
+            </Button>
+          </div>
         </div>
       </Dialog>
     </div>
