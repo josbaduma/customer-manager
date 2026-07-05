@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const { storeId, total, products } = body as {
     storeId?: number;
     total?: number;
-    products?: Array<{ name?: string; description?: string | null; price: number; units?: number }>;
+    products?: Array<{ name?: string; quantity?: number; description?: string | null; price: number; units?: number }>;
   };
 
   if (!storeId || typeof total !== "number" || total <= 0) {
@@ -27,6 +27,7 @@ export async function POST(request: Request) {
           ? {
               create: products.map((p) => ({
                 name: p.name ?? `Item`,
+                quantity: p.quantity ?? 0,
                 description: p.description ?? null,
                 price: p.price,
               })),

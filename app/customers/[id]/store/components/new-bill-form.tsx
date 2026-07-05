@@ -9,8 +9,8 @@ import { useRouter } from "next/navigation";
 type Item = {
   id: string;
   name: string;
+  quantity: number;
   description: string;
-  units: number;
   unitPrice: number;
 };
 
@@ -23,8 +23,8 @@ export function NewBillForm({ storeId }: { storeId: number }) {
       return {
         id,
         name: "",
+        quantity: 1,
         description: "",
-        units: 1,
         unitPrice: 0,
         ...overrides,
       };
@@ -35,15 +35,15 @@ export function NewBillForm({ storeId }: { storeId: number }) {
     {
       id: "item-0",
       name: "",
+      quantity: 1,
       description: "",
-      units: 1,
       unitPrice: 0,
     },
   ]);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const total = items.reduce((sum, it) => sum + it.units * it.unitPrice, 0);
+  const total = items.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0);
 
   const updateItem = (id: string, patch: Partial<Item>) => {
     setItems((prev) =>
@@ -75,9 +75,9 @@ export function NewBillForm({ storeId }: { storeId: number }) {
         total,
         products: items.map((it) => ({
           name: it.name || `Item`,
+          quantity: it.quantity,
           description: it.description || null,
           price: it.unitPrice,
-          units: it.units,
         })),
       };
 
@@ -128,9 +128,9 @@ export function NewBillForm({ storeId }: { storeId: number }) {
             <Input
               type="number"
               min={1}
-              value={it.units}
+              value={it.quantity}
               onChange={(e) =>
-                updateItem(it.id, { units: Number(e.target.value) })
+                updateItem(it.id, { quantity: Number(e.target.value) })
               }
               className="w-24"
               placeholder="Unidades"
@@ -146,7 +146,7 @@ export function NewBillForm({ storeId }: { storeId: number }) {
               placeholder="Precio unit."
             />
             <div className="w-32 text-sm">
-              Total: {formatCurrency(it.units * it.unitPrice)}
+              Total: {formatCurrency(it.quantity * it.unitPrice)}
             </div>
             <Button
               type="button"
