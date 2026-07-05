@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import StoreForm from "@/app/customer/components/store-form";
+import StoreForm from "@/app/customers/components/store-form";
 import {
   Card,
   CardContent,

@@ -40,9 +40,9 @@ export default function StoreForm({
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
-    setName(store?.name ?? "");
-    setLocation(store?.location ?? "");
-    setError(null);
+      setName(store?.name ?? "");
+      setLocation(store?.location ?? "");
+      setError(null);
     }
 
     setOpen(nextOpen);
@@ -107,57 +107,59 @@ export default function StoreForm({
             {error}
           </div>
         ) : null}
-        <DialogTrigger>
-          <Button variant="outline" size="sm">
-            {triggerLabel ?? (store ? "Editar" : "Nueva tienda")}
-          </Button>
-        </DialogTrigger>
+        <DialogTrigger
+          render={
+            <Button variant="outline" size="sm">
+              {triggerLabel ?? (store ? "Editar" : "Nueva tienda")}
+            </Button>
+          }
+        ></DialogTrigger>
         <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {store ? "Editar tienda" : "Nueva tienda"}
-              </DialogTitle>
-              <DialogDescription>
-                {store
-                  ? "Actualiza los datos de la tienda."
-                  : "Agrega una nueva tienda para este cliente."}
-              </DialogDescription>
-            </DialogHeader>
-            <div>
-              <Label>Nombre</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ej. Sucursal Centro"
-              />
-            </div>
-            <div>
-              <Label className="mt-2">Ubicación</Label>
-              <Input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Dirección o ciudad"
-              />
-            </div>
+          <DialogHeader>
+            <DialogTitle>
+              {store ? "Editar tienda" : "Nueva tienda"}
+            </DialogTitle>
+            <DialogDescription>
+              {store
+                ? "Actualiza los datos de la tienda."
+                : "Agrega una nueva tienda para este cliente."}
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label>Nombre</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej. Sucursal Centro"
+            />
+          </div>
+          <div>
+            <Label className="mt-2">Ubicación</Label>
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Dirección o ciudad"
+            />
+          </div>
 
-            <DialogFooter>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving
-                  ? "Guardando..."
-                  : store
-                    ? "Guardar cambios"
-                    : "Crear tienda"}
+          <DialogFooter>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving
+                ? "Guardando..."
+                : store
+                  ? "Guardar cambios"
+                  : "Crear tienda"}
+            </Button>
+            <DialogClose
+              render={<Button variant="secondary">Cancelar</Button>}
+            ></DialogClose>
+            {store ? (
+              <Button type="submit" variant="destructive" className="ml-auto">
+                Eliminar
               </Button>
-              <DialogClose
-                render={<Button variant="secondary">Cancelar</Button>}
-              ></DialogClose>
-              {store ? (
-                <Button type="submit" variant="destructive" className="ml-auto">
-                  Eliminar
-                </Button>
-              ) : null}
-            </DialogFooter>
-          </DialogContent>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </>
   );
