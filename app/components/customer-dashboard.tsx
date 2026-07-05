@@ -30,7 +30,7 @@ type CustomerWithRelations = Customer & {
     bills: Array<{
       id: number;
       total: number;
-      products: Array<{ id: number }>;
+      products: Array<{ id: number, quantity: number | null }>;
     }>;
   }>;
 };
@@ -198,7 +198,10 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
     const camisetas = customer.stores.reduce((storeSum, store) => {
       return (
         storeSum +
-        store.bills.reduce((billSum, bill) => billSum + bill.products.length, 0)
+        store.bills.reduce((billSum, bill) => billSum + bill.products.reduce(
+                          (sum, product) => sum + (product.quantity ?? 0),
+                          0,
+                        ), 0)
       );
     }, 0);
 

@@ -22,7 +22,7 @@ type CustomerWithRelations = Customer & {
     bills: Array<{
       id: number;
       total: number;
-      products: Array<{ id: number }>;
+      products: Array<{ id: number, quantity: number | null}>;
     }>;
   }>;
 };
@@ -88,7 +88,15 @@ export default async function CustomerPage({
   const totalCamisetas = stores.reduce(
     (sum, store) =>
       sum +
-      store.bills.reduce((billSum, bill) => billSum + bill.products.length, 0),
+      store.bills.reduce(
+        (billSum, bill) =>
+          billSum +
+          bill.products.reduce(
+            (sum, product) => sum + (product.quantity ?? 0),
+            0,
+          ),
+        0,
+      ),
     0,
   );
   const totalCobrado = stores.reduce(
@@ -100,7 +108,12 @@ export default async function CustomerPage({
 
   const storesWithStats = stores.map((store) => {
     const camisetas = store.bills.reduce(
-      (sum, bill) => sum + bill.products.length,
+      (sum, bill) =>
+        sum +
+        bill.products.reduce(
+          (sum, product) => sum + (product.quantity ?? 0),
+          0,
+        ),
       0,
     );
     const cobrado = store.bills.reduce((sum, bill) => sum + bill.total, 0);
@@ -217,10 +230,10 @@ export default async function CustomerPage({
                 {stores.length} tiendas
               </h2>
             </div>
-            <div className="flex flex-wrap gap-2">
+            {/* <div className="flex flex-wrap gap-2">
               <Button variant="ghost">Filtrar</Button>
               <Button variant="outline">Exportar</Button>
-            </div>
+            </div> */}
           </div>
 
           <Separator className="my-6" />
@@ -251,7 +264,15 @@ export default async function CustomerPage({
                       >
                         Ver tienda
                       </Link>
-                      <StoreForm customerId={customer.id} store={{ id: store.id, name: store.name, location: store.location }} triggerLabel="Editar" />
+                      <StoreForm
+                        customerId={customer.id}
+                        store={{
+                          id: store.id,
+                          name: store.name,
+                          location: store.location,
+                        }}
+                        triggerLabel="Editar"
+                      />
                     </div>
                   </div>
                 </CardHeader>

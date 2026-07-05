@@ -115,46 +115,66 @@ export function NewBillForm({ storeId }: { storeId: number }) {
     <form className="w-full" onSubmit={handleSubmit}>
       <div className="space-y-2">
         {items.map((it) => (
-          <div key={it.id} className="flex flex-wrap items-center gap-2">
-            <Label className="sr-only">Descripción</Label>
-            <Input
-              placeholder="Descripción (color / diseño)"
-              value={it.description}
-              onChange={(e) =>
-                updateItem(it.id, { description: e.target.value })
-              }
-              className="flex-1 min-w-[160px]"
-            />
-            <Input
-              type="number"
-              min={1}
-              value={it.quantity}
-              onChange={(e) =>
-                updateItem(it.id, { quantity: Number(e.target.value) })
-              }
-              className="w-24"
-              placeholder="Unidades"
-            />
-            <Input
-              type="number"
-              min={0}
-              value={it.unitPrice}
-              onChange={(e) =>
-                updateItem(it.id, { unitPrice: Number(e.target.value) })
-              }
-              className="w-28"
-              placeholder="Precio unit."
-            />
-            <div className="w-32 text-sm">
-              Total: {formatCurrency(it.quantity * it.unitPrice)}
+          <div key={it.id} className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Ítem #{items.indexOf(it) + 1}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => removeItem(it.id)}
+              >
+                Eliminar
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => removeItem(it.id)}
-            >
-              Eliminar
-            </Button>
+
+            <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto] md:items-end">
+              <div className="space-y-1">
+                <Label htmlFor={`description-${it.id}`}>Descripción</Label>
+                <Input
+                  id={`description-${it.id}`}
+                  placeholder="Descripción (color / diseño)"
+                  value={it.description}
+                  onChange={(e) =>
+                    updateItem(it.id, { description: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor={`quantity-${it.id}`}>Unidades</Label>
+                <Input
+                  id={`quantity-${it.id}`}
+                  type="number"
+                  min={1}
+                  value={it.quantity}
+                  onChange={(e) =>
+                    updateItem(it.id, { quantity: Number(e.target.value) })
+                  }
+                  placeholder="Unidades"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor={`unitPrice-${it.id}`}>Precio unit.</Label>
+                <Input
+                  id={`unitPrice-${it.id}`}
+                  type="number"
+                  min={0}
+                  value={it.unitPrice}
+                  onChange={(e) =>
+                    updateItem(it.id, { unitPrice: Number(e.target.value) })
+                  }
+                  placeholder="Precio unit."
+                />
+              </div>
+
+              <div className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <div>Total</div>
+                <div>{formatCurrency(it.quantity * it.unitPrice)}</div>
+              </div>
+            </div>
           </div>
         ))}
 

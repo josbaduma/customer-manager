@@ -1,7 +1,6 @@
 import type { Bill, Customer, Store } from "@/app/generated/prisma/client";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,7 +22,7 @@ import {
 
 interface StoreWithRelations extends Store {
   customer: Customer;
-  bills: Array<Bill & { products: Array<{ id: number }> }>;
+  bills: Array<Bill & { products: Array<{ id: number; quantity: number | null }> }>;
 }
 
 async function getStore(
@@ -174,10 +173,19 @@ function formatCurrency(value: number) {
                     </TableHeader>
                     <TableBody>
                       {store.bills.map((bill) => {
-                        const units = bill.products?.length ?? 0;
+                        const units = bill.products.reduce(
+                          (sum, product) => sum + (product.quantity ?? 0),
+                          0,
+                        );
                         const unitPrice = units > 0 ? bill.total / units : 0;
                         const remaining = Math.max(0, bill.total - bill.paidAmount);
                         const progress = bill.total > 0 ? Math.min(100, Math.round((bill.paidAmount / bill.total) * 100)) : 0;
+                        const statusLabel =
+                          bill.status === "paid"
+                            ? "Pagada"
+                            : bill.status === "partial"
+                              ? "Parcial"
+                              : "Pendiente";
                         return (
                           <TableRow key={bill.id}>
                             <TableCell>
@@ -190,7 +198,7 @@ function formatCurrency(value: number) {
                               <div className="text-sm">{units}</div>
                             </TableCell>
                             <TableCell>
-                              <div className="text-sm">${unitPrice.toFixed(0)}</div>
+                              <div className="text-sm">{formatCurrency(unitPrice)}</div>
                             </TableCell>
                             <TableCell>
                               <div className="text-sm font-semibold">{formatCurrency(bill.total)}</div>
@@ -210,7 +218,7 @@ function formatCurrency(value: number) {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="text-sm capitalize">{bill.status}</div>
+                              <div className="text-sm capitalize">{statusLabel}</div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
