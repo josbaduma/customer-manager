@@ -12,6 +12,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { PaymentForm } from "../components/payment-form";
 import { NewBillForm } from "../components/new-bill-form";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 
 interface StoreWithRelations extends Store {
   customer: Customer;
@@ -65,17 +73,13 @@ export default async function StoreDetailPage({
     (bill) => bill.status !== "paid",
   ).length;
 
-  const billsByStatus = {
-    pending: store.bills.filter((bill) => bill.status === "pending"),
-    partial: store.bills.filter((bill) => bill.status === "partial"),
-    paid: store.bills.filter((bill) => bill.status === "paid"),
-  };
-
-  const statusLabels: Record<string, string> = {
-    pending: "Pendientes",
-    partial: "Parciales",
-    paid: "Pagadas",
-  };
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-CR", {
+    style: "currency",
+    currency: "CRC",
+    minimumFractionDigits: 0,
+  }).format(value);
+}
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
@@ -93,9 +97,6 @@ export default async function StoreDetailPage({
                 {store.location}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline">Editar tienda</Button>
-            </div>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -107,7 +108,7 @@ export default async function StoreDetailPage({
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold text-emerald-900 dark:text-emerald-200">
-                  ${totalCobrado.toFixed(0)}
+                  {formatCurrency(totalCobrado)}
                 </p>
               </CardContent>
             </Card>
@@ -119,7 +120,7 @@ export default async function StoreDetailPage({
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold text-amber-900 dark:text-amber-200">
-                  ${totalPending.toFixed(0)}
+                  {formatCurrency(totalPending)}
                 </p>
               </CardContent>
             </Card>
@@ -140,8 +141,8 @@ export default async function StoreDetailPage({
 
           <Separator className="my-8" />
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(400px,1fr)_minmax(320px,420px)]">
-            <div className="space-y-6">
+          <div>
+            <div className="space-y-12">
               <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -155,62 +156,77 @@ export default async function StoreDetailPage({
                   <NewBillForm storeId={store.id} />
                 </div>
 
-                <div className="mt-6 space-y-4">
-                  {Object.entries(billsByStatus).map(([status, bills]) => (
-                    <div
-                      key={status}
-                      className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
-                    >
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        {statusLabels[status] ?? status}
-                      </h3>
-                      <div className="space-y-3">
-                        {bills.length === 0 ? (
-                          <p className="text-sm text-slate-500">
-                            No hay facturas {statusLabels[status] ?? status}.
-                          </p>
-                        ) : (
-                          bills.map((bill) => (
-                            <div
-                              key={bill.id}
-                              className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950"
-                            >
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                    Factura #{bill.id}
-                                  </p>
-                                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Total: ${bill.total.toFixed(0)}
-                                  </p>
+                <div className="mt-6">
+                  <Table>
+                    <TableHeader>
+                      <tr>
+                        <TableHead>#</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Unidades</TableHead>
+                        <TableHead>Precio unit.</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Cobrado</TableHead>
+                        <TableHead>Pendiente</TableHead>
+                        <TableHead>Progreso</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Acciones</TableHead>
+                      </tr>
+                    </TableHeader>
+                    <TableBody>
+                      {store.bills.map((bill) => {
+                        const units = bill.products?.length ?? 0;
+                        const unitPrice = units > 0 ? bill.total / units : 0;
+                        const remaining = Math.max(0, bill.total - bill.paidAmount);
+                        const progress = bill.total > 0 ? Math.min(100, Math.round((bill.paidAmount / bill.total) * 100)) : 0;
+                        return (
+                          <TableRow key={bill.id}>
+                            <TableCell>
+                              <div className="text-sm font-semibold">#{bill.id}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm text-slate-500">{bill.createdAt ? new Date(bill.createdAt).toLocaleDateString() : "-"}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">{units}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">${unitPrice.toFixed(0)}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm font-semibold">{formatCurrency(bill.total)}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm text-emerald-700">{formatCurrency(bill.paidAmount)}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm text-amber-700">{formatCurrency(remaining)}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="w-40">
+                                <div className="h-2 w-full rounded-full bg-slate-200">
+                                  <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-sm text-slate-500">
-                                    Pagado: ${bill.paidAmount.toFixed(0)}
-                                  </p>
-                                  <p className="text-sm text-slate-500">
-                                    Restante: $
-                                    {Math.max(
-                                      0,
-                                      bill.total - bill.paidAmount,
-                                    ).toFixed(0)}
-                                  </p>
-                                </div>
+                                <div className="mt-1 text-xs text-slate-500">{progress}%</div>
                               </div>
-                              <div className="mt-4 flex flex-wrap gap-2">
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm capitalize">{bill.status}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
                                 <PaymentForm bill={bill} />
                               </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-6">
+{/*             <div className="space-y-6">
               <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="text-xl font-semibold text-slate-950 dark:text-slate-50">
                   Resumen de tienda
@@ -242,7 +258,7 @@ export default async function StoreDetailPage({
                   </p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

@@ -3,9 +3,10 @@ import prisma from "@/lib/prisma";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { storeId, total } = body as {
+  const { storeId, total, products } = body as {
     storeId?: number;
     total?: number;
+    products?: Array<{ name?: string; description?: string | null; price: number; units?: number }>;
   };
 
   if (!storeId || typeof total !== "number" || total <= 0) {
@@ -22,7 +23,17 @@ export async function POST(request: Request) {
         paidAmount: 0,
         status: "pending",
         store: { connect: { id: storeId } },
+        products: products
+          ? {
+              create: products.map((p) => ({
+                name: p.name ?? `Item`,
+                description: p.description ?? null,
+                price: p.price,
+              })),
+            }
+          : undefined,
       },
+      include: { products: true },
     });
 
     return NextResponse.json({ bill });

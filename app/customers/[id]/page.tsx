@@ -152,7 +152,6 @@ export default async function CustomerPage({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="outline">Editar cliente</Button>
               <StoreForm customerId={customer.id} />
             </div>
           </div>
