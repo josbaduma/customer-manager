@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node --experimental-require-module ./node_modules/prisma/build/index.js generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate": "node --experimental-require-module ./node_modules/prisma/build/index.js generate",
+    "postinstall": "node --experimental-require-module ./node_modules/prisma/build/index.js generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
