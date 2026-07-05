@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { useRouter } from "next/navigation";
 
-type CustomerWithRelations = Customer & {
+export type CustomerWithRelations = Customer & {
   deletedAt?: Date | null;
   stores: Array<{
     id: number;
@@ -30,7 +30,7 @@ type CustomerWithRelations = Customer & {
     bills: Array<{
       id: number;
       total: number;
-      products: Array<{ id: number, quantity: number | null }>;
+      products: Array<{ id: number; quantity: number | null }>;
     }>;
   }>;
 };

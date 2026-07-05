@@ -1,0 +1,9 @@
+-- CreateTable
+CREATE TABLE "PaidHistory" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "bill_id" INTEGER NOT NULL,
+    "amountPaid" REAL NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "PaidHistory_bill_id_fkey" FOREIGN KEY ("bill_id") REFERENCES "Bill" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);

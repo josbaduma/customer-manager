@@ -39,15 +39,30 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       : "pending";
 
   try {
-    const updatedBill = await prisma.bill.update({
-      where: { id: billId },
-      data: {
-        paidAmount: nextPaidAmount,
-        status: nextStatus,
-      },
+    const paidDelta = Math.max(0, nextPaidAmount - bill.paidAmount);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedBill = await tx.bill.update({
+        where: { id: billId },
+        data: {
+          paidAmount: nextPaidAmount,
+          status: nextStatus,
+        },
+      });
+
+      if (paidDelta > 0) {
+        await tx.paidHistory.create({
+          data: {
+            bill_id: billId,
+            amountPaid: paidDelta,
+          },
+        });
+      }
+
+      return updatedBill;
     });
 
-    return NextResponse.json({ bill: updatedBill });
+    return NextResponse.json({ bill: result });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "No se pudo actualizar el pago." }, { status: 500 });

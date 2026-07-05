@@ -9,8 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { PaymentForm } from "../components/payment-form";
 import { NewBillForm } from "../components/new-bill-form";
+import { BillActionsDropdown } from "../components/bill-actions-dropdown";
 import {
   Table,
   TableHeader,
@@ -22,7 +22,16 @@ import {
 
 interface StoreWithRelations extends Store {
   customer: Customer;
-  bills: Array<Bill & { products: Array<{ id: number; quantity: number | null }> }>;
+  bills: Array<
+    Bill & {
+      products: Array<{ id: number; quantity: number | null }>;
+      paidHistory: Array<{
+        id: number;
+        amountPaid: number;
+        createdAt: Date | string;
+      }>;
+    }
+  >;
 }
 
 async function getStore(
@@ -36,6 +45,9 @@ async function getStore(
       bills: {
         include: {
           products: true,
+          paidHistory: {
+            orderBy: { createdAt: "asc" },
+          },
         },
       },
     },
@@ -162,7 +174,6 @@ function formatCurrency(value: number) {
                         <TableHead>#</TableHead>
                         <TableHead>Fecha</TableHead>
                         <TableHead>Unidades</TableHead>
-                        <TableHead>Precio unit.</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Cobrado</TableHead>
                         <TableHead>Pendiente</TableHead>
@@ -177,7 +188,6 @@ function formatCurrency(value: number) {
                           (sum, product) => sum + (product.quantity ?? 0),
                           0,
                         );
-                        const unitPrice = units > 0 ? bill.total / units : 0;
                         const remaining = Math.max(0, bill.total - bill.paidAmount);
                         const progress = bill.total > 0 ? Math.min(100, Math.round((bill.paidAmount / bill.total) * 100)) : 0;
                         const statusLabel =
@@ -196,9 +206,6 @@ function formatCurrency(value: number) {
                             </TableCell>
                             <TableCell>
                               <div className="text-sm">{units}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">{formatCurrency(unitPrice)}</div>
                             </TableCell>
                             <TableCell>
                               <div className="text-sm font-semibold">{formatCurrency(bill.total)}</div>
@@ -222,7 +229,7 @@ function formatCurrency(value: number) {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <PaymentForm bill={bill} />
+                                <BillActionsDropdown bill={bill} />
                               </div>
                             </TableCell>
                           </TableRow>
