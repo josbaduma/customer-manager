@@ -1,3 +1,5 @@
+import { createHmac } from "crypto";
+
 const AUTH_SECRET = process.env.AUTH_SECRET || "change_this_secret_in_production";
 const TOKEN_LIFETIME = 1000 * 60 * 60 * 24 * 7; // 7 días
 
@@ -59,6 +61,11 @@ function constantTimeCompare(a: Uint8Array, b: Uint8Array) {
 }
 
 async function sign(value: string) {
+  if (typeof createHmac === "function") {
+    const signature = createHmac("sha256", AUTH_SECRET).update(value).digest();
+    return base64UrlEncode(new Uint8Array(signature));
+  }
+
   const keyData = new TextEncoder().encode(AUTH_SECRET);
   const messageData = new TextEncoder().encode(value);
   const subtle = globalThis.crypto?.subtle;
