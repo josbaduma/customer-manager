@@ -42,6 +42,7 @@ model Store {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
   bills       Bill[]
+  products    Product[]
 }
 
 enum BillStatus {
@@ -56,8 +57,9 @@ model Product {
   quantity    Int      @default(0)
   description String?
   price       Float
-  bill        Bill     @relation(fields: [bill_id], references: [id])
-  bill_id     Int
+  store       Store    @relation(fields: [store_id], references: [id])
+  store_id    Int      @default(1)
+  paidHistory ProductPaidHistory[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
 }
@@ -71,7 +73,6 @@ model Bill {
   store_id   Int
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
-  products   Product[]
   paidHistory PaidHistory[]
 }
 
@@ -82,4 +83,13 @@ model PaidHistory {
   amountPaid  Float     @default(0)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
+}
+
+model ProductPaidHistory {
+  id         Int      @id @default(autoincrement())
+  product    Product  @relation(fields: [product_id], references: [id])
+  product_id Int
+  amountPaid Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

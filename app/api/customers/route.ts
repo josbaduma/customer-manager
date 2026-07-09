@@ -27,9 +27,10 @@ export async function POST(request: Request) {
     include: {
       stores: {
         include: {
+          products: true,
           bills: {
             include: {
-              products: true,
+              paidHistory: true,
             },
           },
         },

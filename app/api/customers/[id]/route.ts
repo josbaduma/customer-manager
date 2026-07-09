@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const body = await request.json();
   const { name, email, phone } = body as {
     name?: string;
@@ -12,11 +15,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const customerId = Number(id);
   if (Number.isNaN(customerId)) {
-    return NextResponse.json({ error: "ID de cliente inválido." }, { status: 400 });
+    return NextResponse.json(
+      { error: "ID de cliente inválido." },
+      { status: 400 },
+    );
   }
 
   if (!name || !email) {
-    return NextResponse.json({ error: "Nombre y correo son requeridos." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Nombre y correo son requeridos." },
+      { status: 400 },
+    );
   }
 
   const customer = await prisma.customer.update({
@@ -29,9 +38,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     include: {
       stores: {
         include: {
+          products: true,
           bills: {
             include: {
-              products: true,
+              paidHistory: true,
             },
           },
         },
@@ -42,11 +52,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ customer });
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
   const customerId = Number(id);
   if (Number.isNaN(customerId)) {
-    return NextResponse.json({ error: "ID de cliente inválido." }, { status: 400 });
+    return NextResponse.json(
+      { error: "ID de cliente inválido." },
+      { status: 400 },
+    );
   }
 
   const customer = await prisma.customer.update({
@@ -55,9 +71,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     include: {
       stores: {
         include: {
+          products: true,
           bills: {
             include: {
-              products: true,
+              paidHistory: true,
             },
           },
         },

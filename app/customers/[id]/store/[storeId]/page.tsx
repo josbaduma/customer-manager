@@ -22,9 +22,9 @@ import {
 
 interface StoreWithRelations extends Store {
   customer: Customer;
+  products: Array<{ id: number; quantity: number | null }>;
   bills: Array<
     Bill & {
-      products: Array<{ id: number; quantity: number | null }>;
       paidHistory: Array<{
         id: number;
         amountPaid: number;
@@ -42,9 +42,9 @@ async function getStore(
     where: { id: storeId, customer_id: customerId, deletedAt: null },
     include: {
       customer: true,
+      products: true,
       bills: {
         include: {
-          products: true,
           paidHistory: {
             orderBy: { createdAt: "asc" },
           },
