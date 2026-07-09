@@ -1,35 +1,25 @@
-import type { Customer } from "../../generated/prisma/client";
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+import type { Bill, Customer, Product } from "@/app/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { Button } from "@/components/ui/button";
 import StoreForm from "@/app/customers/components/store-form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { EditableProductsTable } from "./editable-products-table";
 
 type CustomerWithRelations = Customer & {
   stores: Array<{
     id: number;
     name: string;
     location: string;
-    bills: Array<{
-      id: number;
-      total: number;
-      products: Array<{ id: number, quantity: number | null}>;
-    }>;
+    products: Array<Product & { paidHistory: Array<{ amountPaid: number }> }>;
+    bills: Array<
+      Bill & {
+        paidHistory: Array<{
+          id: number;
+          amountPaid: number;
+          createdAt: Date | string;
+        }>;
+      }
+    >;
   }>;
 };
-
-function formatNumber(value: number) {
-  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-CR", {
@@ -52,9 +42,14 @@ async function getCustomer(id: string): Promise<CustomerWithRelations | null> {
       stores: {
         where: { deletedAt: null },
         include: {
+          products: {
+            include: {
+              paidHistory: true,
+            },
+          },
           bills: {
             include: {
-              products: true,
+              paidHistory: true,
             },
           },
         },
@@ -85,52 +80,20 @@ export default async function CustomerPage({
   }
 
   const stores = customer.stores;
-  const totalCamisetas = stores.reduce(
-    (sum, store) =>
-      sum +
-      store.bills.reduce(
-        (billSum, bill) =>
-          billSum +
-          bill.products.reduce(
-            (sum, product) => sum + (product.quantity ?? 0),
-            0,
-          ),
+
+  const totalPendiente = stores.reduce((sum, store) => {
+    const storePending = store.products.reduce((productSum, product) => {
+      const total = product.price * (product.quantity ?? 0);
+      const paidTotal = (product.paidHistory ?? []).reduce(
+        (historySum, entry) => historySum + (entry.amountPaid ?? 0),
         0,
-      ),
-    0,
-  );
-  const totalCobrado = stores.reduce(
-    (sum, store) =>
-      sum + store.bills.reduce((billSum, bill) => billSum + bill.total, 0),
-    0,
-  );
-  const totalPendiente = Math.max(0, Math.round(totalCobrado * 0.27));
+      );
 
-  const storesWithStats = stores.map((store) => {
-    const camisetas = store.bills.reduce(
-      (sum, bill) =>
-        sum +
-        bill.products.reduce(
-          (sum, product) => sum + (product.quantity ?? 0),
-          0,
-        ),
-      0,
-    );
-    const cobrado = store.bills.reduce((sum, bill) => sum + bill.total, 0);
-    const pagas = Math.max(1, Math.floor(store.bills.length * 0.56));
-    const parciales = Math.max(0, Math.floor(store.bills.length * 0.28));
-    const pendientes = Math.max(0, store.bills.length - pagas - parciales);
+      return productSum + Math.max(0, total - paidTotal);
+    }, 0);
 
-    return {
-      ...store,
-      camisetas,
-      cobrado,
-      pendiente: Math.max(0, Math.round(cobrado * 0.27)),
-      pagas,
-      parciales,
-      pendientes,
-    };
-  });
+    return sum + storePending;
+  }, 0);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
@@ -146,7 +109,7 @@ export default async function CustomerPage({
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-900 text-3xl font-semibold text-white dark:bg-slate-100 dark:text-slate-950">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xl font-semibold text-white dark:bg-slate-100 dark:text-slate-950">
                   {customer.name
                     .split(" ")
                     .map((part) => part[0])
@@ -154,13 +117,18 @@ export default async function CustomerPage({
                     .join("")}
                 </div>
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
+                  <h1 className="text-xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
                     {customer.name}
                   </h1>
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    Email: {customer.email} | Teléfono: {customer.phone}
-                  </p>
                 </div>
+              </div>
+              <div>
+                <p className="text-md text-slate-500 dark:text-slate-400">
+                  Pendiente de cobro:{" "}
+                  <span className="font-semibold text-amber-900 dark:text-amber-200">
+                    {formatCurrency(totalPendiente)}
+                  </span>
+                </p>
               </div>
             </div>
 
@@ -168,59 +136,17 @@ export default async function CustomerPage({
               <StoreForm customerId={customer.id} />
             </div>
           </div>
-
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            <Card className="rounded-[2rem] border border-slate-200 bg-slate-50 shadow-none dark:border-slate-800 dark:bg-slate-900">
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold tracking-[0.18em] uppercase text-slate-500">
-                  Total camisetas vendidas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-semibold text-slate-950 dark:text-slate-50">
-                  {formatNumber(totalCamisetas)}
-                </p>
-                <CardDescription className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  En {stores.length} tiendas activas
-                </CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2rem] border border-slate-200 bg-emerald-50 shadow-none dark:border-slate-800 dark:bg-slate-950">
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold tracking-[0.18em] uppercase text-emerald-700">
-                  Total cobrado
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-semibold text-emerald-900 dark:text-emerald-200">
-                  {formatCurrency(totalCobrado)}
-                </p>
-                <CardDescription className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  Facturas pagas + parciales
-                </CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2rem] border border-slate-200 bg-amber-50 shadow-none dark:border-slate-800 dark:bg-slate-950">
-              <CardHeader>
-                <CardTitle className="text-sm font-semibold tracking-[0.18em] uppercase text-amber-700">
-                  Total pendiente
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-semibold text-amber-900 dark:text-amber-200">
-                  {formatCurrency(totalPendiente)}
-                </p>
-                <CardDescription className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  Por cobrar en todas las tiendas
-                </CardDescription>
-              </CardContent>
-            </Card>
-          </div>
         </div>
 
         <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
+          <EditableProductsTable stores={stores.map((store) => ({
+            id: store.id,
+            name: store.name,
+            location: store.location,
+            products: store.products,
+          }))} />
+        </section>
+        {/* <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -230,10 +156,10 @@ export default async function CustomerPage({
                 {stores.length} tiendas
               </h2>
             </div>
-            {/* <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="ghost">Filtrar</Button>
               <Button variant="outline">Exportar</Button>
-            </div> */}
+            </div>
           </div>
 
           <Separator className="my-6" />
@@ -320,7 +246,7 @@ export default async function CustomerPage({
               </Card>
             ))}
           </div>
-        </section>
+        </section> */}
       </div>
     </div>
   );

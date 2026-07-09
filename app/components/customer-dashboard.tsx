@@ -10,7 +10,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableHeader,
@@ -30,7 +29,13 @@ export type CustomerWithRelations = Customer & {
     bills: Array<{
       id: number;
       total: number;
-      products: Array<{ id: number; quantity: number | null }>;
+    }>;
+    products: Array<{
+      id: number;
+      name: string;
+      quantity: number | null;
+      price: number;
+      paidHistory: Array<{ amountPaid: number }>;
     }>;
   }>;
 };
@@ -77,12 +82,6 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   const [currentPage, setCurrentPage] = React.useState(1);
   const pageSize = 5;
   const router = useRouter();
-
-  const totalClientes = customerList.length;
-  const totalTiendas = customerList.reduce(
-    (sum, customer) => sum + customer.stores.length,
-    0,
-  );
 
   const openCreateDialog = () => {
     setDialogMode("create");
@@ -188,34 +187,24 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   };
 
   const customersWithTotals = customerList.map((customer) => {
-    const cobrado = customer.stores.reduce((storeSum, store) => {
-      return (
-        storeSum +
-        store.bills.reduce((billSum, bill) => billSum + bill.total, 0)
-      );
-    }, 0);
-
-    const camisetas = customer.stores.reduce((storeSum, store) => {
-      return (
-        storeSum +
-        store.bills.reduce(
-          (billSum, bill) =>
-            billSum +
-            bill.products.reduce(
-              (sum, product) => sum + (product.quantity ?? 0),
-              0,
-            ),
+    const pendiente = customer.stores.reduce((storeSum, store) => {
+      const storePending = store.products.reduce((productSum, product) => {
+        const total = product.price * (product.quantity ?? 0);
+        const paidTotal = (product.paidHistory ?? []).reduce(
+          (historySum, entry) => historySum + (entry.amountPaid ?? 0),
           0,
-        )
-      );
+        );
+
+        return productSum + Math.max(0, total - paidTotal);
+      }, 0);
+
+      return storeSum + storePending;
     }, 0);
 
     return {
       customer,
-      cobrado,
-      pendiente: Math.round(cobrado * 0.3),
+      pendiente,
       tiendas: customer.stores.length,
-      camisetas,
     };
   });
 
