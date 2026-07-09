@@ -60,3 +60,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No se pudo crear el producto." }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const storeId = Number(url.searchParams.get("storeId"));
+  const search = url.searchParams.get("search")?.trim();
+
+  const products = await prisma.product.findMany({
+    where: {
+      ...(storeId > 0 ? { store_id: storeId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  return NextResponse.json({ products });
+}
