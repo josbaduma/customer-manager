@@ -29,7 +29,6 @@ export type CustomerWithRelations = Customer & {
     bills: Array<{
       id: number;
       total: number;
-      products: Array<{ id: number; quantity: number | null }>;
     }>;
     products: Array<{
       id: number;
