@@ -372,6 +372,7 @@ export function EditableProductsTable({ stores }: EditableProductsTableProps) {
                   )}
                 </TableCell>
                 <TableCell></TableCell>
+                <TableCell></TableCell>
               </TableRow>
               <TableRow>
                 <TableCell>
@@ -424,6 +425,7 @@ export function EditableProductsTable({ stores }: EditableProductsTableProps) {
                 </TableCell>
                 <TableCell>-</TableCell>
                 <TableCell>-</TableCell>
+                <TableCell></TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
