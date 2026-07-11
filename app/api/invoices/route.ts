@@ -1,86 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import prisma from "@/lib/prisma";
-
-const require = createRequire(import.meta.url);
-const pdfkitPackageDir = path.dirname(require.resolve("pdfkit/package.json"));
-const pdfkitDataDir = path.join(pdfkitPackageDir, "js", "data");
-const fallbackFonts = {
-  "Helvetica.afm": `StartFontMetrics 4.1
-FontName Helvetica
-FullName Helvetica
-FamilyName Helvetica
-Weight Medium
-ItalicAngle 0
-IsFixedPitch false
-CharacterSet ExtendedRoman
-FontBBox -166 -225 1000 931
-UnderlinePosition -100
-UnderlineThickness 50
-Version 002.000
-EncodingScheme AdobeStandardEncoding
-CapHeight 718
-XHeight 523
-Ascender 718
-Descender -207
-StartCharMetrics 5
-C 32 ; WX 278 ; N space ; B 0 0 0 0 ;
-C 65 ; WX 667 ; N A ; B 0 0 0 0 ;
-C 66 ; WX 667 ; N B ; B 0 0 0 0 ;
-C 97 ; WX 556 ; N a ; B 0 0 0 0 ;
-C 98 ; WX 556 ; N b ; B 0 0 0 0 ;
-EndCharMetrics
-`,
-  "Helvetica-Bold.afm": `StartFontMetrics 4.1
-FontName Helvetica-Bold
-FullName Helvetica Bold
-FamilyName Helvetica
-Weight Bold
-ItalicAngle 0
-IsFixedPitch false
-CharacterSet ExtendedRoman
-FontBBox -170 -228 1003 962
-UnderlinePosition -100
-UnderlineThickness 50
-Version 002.000
-EncodingScheme AdobeStandardEncoding
-CapHeight 718
-XHeight 532
-Ascender 718
-Descender -207
-StartCharMetrics 5
-C 32 ; WX 278 ; N space ; B 0 0 0 0 ;
-C 65 ; WX 667 ; N A ; B 0 0 0 0 ;
-C 66 ; WX 667 ; N B ; B 0 0 0 0 ;
-C 97 ; WX 556 ; N a ; B 0 0 0 0 ;
-C 98 ; WX 556 ; N b ; B 0 0 0 0 ;
-EndCharMetrics
-`,
-};
-
-function ensurePdfkitFonts() {
-  mkdirSync(pdfkitDataDir, { recursive: true });
-
-  for (const [fileName, contents] of Object.entries(fallbackFonts)) {
-    const targetPath = path.join(pdfkitDataDir, fileName);
-
-    if (existsSync(targetPath)) {
-      continue;
-    }
-
-    const bundledFontPath = path.resolve(process.cwd(), "lib", "pdfkit-fonts", fileName);
-    const sourceContents = existsSync(bundledFontPath)
-      ? readFileSync(bundledFontPath, "utf8")
-      : null;
-
-    writeFileSync(targetPath, sourceContents ?? contents, "utf8");
-  }
-}
-
-ensurePdfkitFonts();
+export const runtime = "nodejs";
+import path from "path";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -161,7 +83,12 @@ async function generateInvoicePdf({
   store: { name: string; location: string };
   items: Array<{ description: string; quantity: number; price: number }>;
 }) {
-  const doc = new PDFDocument({ size: "A4", margin: 48 });
+  const fontRegular = path.join(process.cwd(), "public/fonts/Roboto-Regular.ttf");
+  const fontBold = path.join(process.cwd(), "public/fonts/Roboto-Bold.ttf");
+
+  const doc = new PDFDocument({ size: "A4", margin: 48, font: fontRegular });
+  doc.registerFont("Regular", fontRegular);
+  doc.registerFont("Bold", fontBold);
   const chunks: Uint8Array[] = [];
 
   doc.on("data", (chunk: Uint8Array) => chunks.push(chunk));
@@ -170,58 +97,98 @@ async function generateInvoicePdf({
     doc.on("error", reject);
   });
 
-  doc.fontSize(20).text("Factura Comercial", { align: "center" });
-  doc.moveDown();
+  const margin = 40;
+  const pageWidth = doc.page.width;
+  const contentWidth = pageWidth - margin * 2;
+  const emittedAt = new Intl.DateTimeFormat("es-CR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date());
 
-  doc.fontSize(12).text(`Cliente: ${customer.name}`);
-  doc.text(`Email: ${customer.email}`);
-  doc.text(`Tienda: ${store.name}`);
-  doc.text(`Ubicación: ${store.location}`);
-  doc.text(`Fecha: ${new Intl.DateTimeFormat("es-CR").format(new Date())}`);
-  doc.moveDown();
+  const headerY = margin;
+  doc.rect(margin, headerY, contentWidth, 90).fill("#0f172a");
+  doc.fillColor("white");
+  doc.font("Bold");
+  doc.fontSize(22).text("Factura Comercial", margin + 24, headerY + 22, { width: contentWidth - 48 });
+  doc.font("Regular");
+  doc.fontSize(10).text(`Tienda de Camisas`, margin + 24, headerY + 54);
+  doc.text(`Emitida: ${emittedAt}`, margin + 24, headerY + 70);
 
-  doc.fontSize(12).text("Detalle:");
-  const tableTop = doc.y + 10;
-  const itemTable = {
-    headers: ["Descripción", "Cantidad", "Precio", "Total"],
-    rows: items.map((item) => [
-      item.description,
-      item.quantity.toString(),
-      formatCurrency(item.price),
-      formatCurrency(item.quantity * item.price),
-    ]),
-  };
+  doc.fontSize(10);
+  doc.text(`Cliente: ${customer.name}`, margin + 320, headerY + 24, { width: 180 });
+  doc.text(`Email: ${customer.email}`, margin + 320, headerY + 42, { width: 180 });
+  doc.text(`Tienda: ${store.name}`, margin + 320, headerY + 60, { width: 180 });
+  doc.text(`Ubicación: ${store.location}`, margin + 320, headerY + 78, { width: 180 });
 
-  doc.moveTo(48, tableTop - 8).lineTo(552, tableTop - 8).stroke();
-  doc.moveDown(0.5);
-  doc.font("Helvetica-Bold");
-  doc.text(itemTable.headers[0], 50, doc.y, { width: 240 });
-  doc.text(itemTable.headers[1], 290, doc.y, { width: 80, align: "right" });
-  doc.text(itemTable.headers[2], 370, doc.y, { width: 100, align: "right" });
-  doc.text(itemTable.headers[3], 470, doc.y, { width: 100, align: "right" });
-  doc.moveDown(0.5);
-  doc.font("Helvetica");
+  const infoY = headerY + 118;
+  doc.fillColor("#f8fafc");
+  doc.strokeColor("#cbd5e1");
+  doc.lineWidth(1);
+  doc.rect(margin, infoY, contentWidth, 70).fillAndStroke("#f8fafc", "#cbd5e1");
+  doc.fillColor("#0f172a");
+  doc.font("Bold");
+  doc.fontSize(12).text("Datos del cliente", margin + 20, infoY + 16);
+  doc.font("Regular");
+  doc.fontSize(10).fillColor("#334155");
+  doc.text(`Cliente: ${customer.name}`, margin + 20, infoY + 38);
+  doc.text(`Email: ${customer.email}`, margin + 20, infoY + 54);
+  doc.text(`Tienda: ${store.name}`, margin + 245, infoY + 38);
+  doc.text(`Ubicación: ${store.location}`, margin + 245, infoY + 54);
 
-  itemTable.rows.forEach((row) => {
-    doc.text(row[0], 50, doc.y, { width: 240 });
-    doc.text(row[1], 290, doc.y, { width: 80, align: "right" });
-    doc.text(row[2], 370, doc.y, { width: 100, align: "right" });
-    doc.text(row[3], 470, doc.y, { width: 100, align: "right" });
-    doc.moveDown(0.5);
+  const tableTop = infoY + 110;
+  const headerHeight = 24;
+  const rowHeight = 24;
+  const colX = [margin + 16, margin + 245, margin + 305, margin + 405];
+  const colWidth = [200, 45, 100, 100];
+
+  doc.fillColor("#0f172a");
+  doc.rect(margin, tableTop, contentWidth, headerHeight).fill("#0f172a");
+  doc.fillColor("white");
+  doc.font("Bold");
+  doc.fontSize(10);
+  doc.text("Descripción", colX[0], tableTop + 7, { width: colWidth[0] });
+  doc.text("Cantidad", colX[1], tableTop + 7, { width: colWidth[1], align: "center" });
+  doc.text("Precio Unitario", colX[2], tableTop + 7, { width: colWidth[2], align: "right" });
+  doc.text("Total", colX[3], tableTop + 7, { width: colWidth[3], align: "right" });
+
+  const rowsTop = tableTop + headerHeight;
+  items.forEach((item, index) => {
+    const rowY = rowsTop + index * rowHeight;
+    doc.rect(margin, rowY, contentWidth, rowHeight).fill(index % 2 === 0 ? "#f8fafc" : "white");
+    doc.strokeColor("#e2e8f0");
+    doc.lineWidth(0.5);
+    doc.rect(margin, rowY, contentWidth, rowHeight).stroke();
+    doc.fillColor("#334155");
+    doc.font("Regular");
+    doc.fontSize(9);
+    doc.text(item.description, colX[0], rowY + 7, { width: colWidth[0] });
+    doc.text(item.quantity.toString(), colX[1], rowY + 7, { width: colWidth[1], align: "center" });
+    doc.text(formatCurrency(item.price), colX[2], rowY + 7, { width: colWidth[2], align: "right" });
+    doc.text(formatCurrency(item.quantity * item.price), colX[3], rowY + 7, { width: colWidth[3], align: "right" });
   });
 
-  doc.moveDown();
-  doc.font("Helvetica-Bold");
-  doc.text(`Total: ${formatCurrency(bill.total)}`, { align: "right" });
+  const totalsY = rowsTop + items.length * rowHeight + 18;
+  doc.fillColor("#0f172a");
+  doc.rect(margin + 300, totalsY, 215, 60).fill("#f8fafc");
+  doc.strokeColor("#cbd5e1");
+  doc.lineWidth(1);
+  doc.rect(margin + 300, totalsY, 215, 60).stroke();
+  doc.fillColor("#0f172a");
+  doc.font("Bold");
+  doc.fontSize(11).text("Total a pagar", margin + 316, totalsY + 12);
+  doc.fontSize(14).text(formatCurrency(bill.total), margin + 316, totalsY + 34, { width: 180, align: "right" });
+
+  doc.font("Regular");
+  doc.fontSize(9).fillColor("#64748b");
+  doc.text("Gracias por su compra", margin, totalsY + 90, { align: "center", width: contentWidth });
 
   doc.end();
   return endPromise;
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-CR", {
-    style: "currency",
-    currency: "CRC",
-    minimumFractionDigits: 0,
-  }).format(value);
+  return `CRC ${new Intl.NumberFormat('es-CR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value)}`;
 }
