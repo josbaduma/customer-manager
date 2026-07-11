@@ -20,6 +20,11 @@ const navigationItems = [
     icon: Home,
   },
   {
+    title: "Facturas",
+    url: "/invoices",
+    icon: UserRound,
+  },
+  {
     title: "Mi cuenta",
     url: "/account",
     icon: UserRound,

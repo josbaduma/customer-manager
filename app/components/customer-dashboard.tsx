@@ -10,7 +10,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableHeader,
@@ -30,7 +29,13 @@ export type CustomerWithRelations = Customer & {
     bills: Array<{
       id: number;
       total: number;
-      products: Array<{ id: number; quantity: number | null }>;
+    }>;
+    products: Array<{
+      id: number;
+      name: string;
+      quantity: number | null;
+      price: number;
+      paidHistory: Array<{ amountPaid: number }>;
     }>;
   }>;
 };
@@ -77,12 +82,6 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   const [currentPage, setCurrentPage] = React.useState(1);
   const pageSize = 5;
   const router = useRouter();
-
-  const totalClientes = customerList.length;
-  const totalTiendas = customerList.reduce(
-    (sum, customer) => sum + customer.stores.length,
-    0,
-  );
 
   const openCreateDialog = () => {
     setDialogMode("create");
@@ -188,36 +187,27 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   };
 
   const customersWithTotals = customerList.map((customer) => {
-    const cobrado = customer.stores.reduce((storeSum, store) => {
-      return (
-        storeSum +
-        store.bills.reduce((billSum, bill) => billSum + bill.total, 0)
-      );
-    }, 0);
+    const pendiente = customer.stores.reduce((storeSum, store) => {
+      const storePending = store.products.reduce((productSum, product) => {
+        const total = product.price * (product.quantity ?? 0);
+        const paidTotal = (product.paidHistory ?? []).reduce(
+          (historySum, entry) => historySum + (entry.amountPaid ?? 0),
+          0,
+        );
 
-    const camisetas = customer.stores.reduce((storeSum, store) => {
-      return (
-        storeSum +
-        store.bills.reduce((billSum, bill) => billSum + bill.products.reduce(
-                          (sum, product) => sum + (product.quantity ?? 0),
-                          0,
-                        ), 0)
-      );
+        return productSum + Math.max(0, total - paidTotal);
+      }, 0);
+
+      return storeSum + storePending;
     }, 0);
 
     return {
       customer,
-      cobrado,
-      pendiente: Math.round(cobrado * 0.3),
+      pendiente,
       tiendas: customer.stores.length,
-      camisetas,
     };
   });
 
-  const totalCobrado = customersWithTotals.reduce(
-    (sum, item) => sum + item.cobrado,
-    0,
-  );
   const totalPendiente = customersWithTotals.reduce(
     (sum, item) => sum + item.pendiente,
     0,
@@ -228,64 +218,16 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
       <main className="mx-auto w-full max-w-6xl space-y-8 pb-10">
         <section className="space-y-4 rounded-[2rem] border border-slate-200 bg-white px-8 py-8 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold">Clientes</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Resumen general de tus clientes, tiendas y facturación.
-            </p>
+            <h1 className="text-2xl font-semibold">Clientes</h1>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
-              <CardHeader>
-                <CardTitle className="text-sm uppercase tracking-[0.24em] text-slate-400">
-                  Clientes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold text-slate-950 dark:text-slate-50">
-                  {totalClientes}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
-              <CardHeader>
-                <CardTitle className="text-sm uppercase tracking-[0.24em] text-slate-400">
-                  Tiendas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold text-slate-950 dark:text-slate-50">
-                  {totalTiendas}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-slate-200 bg-emerald-100/80 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
-              <CardHeader>
-                <CardTitle className="text-sm uppercase tracking-[0.24em] text-emerald-700">
-                  Cobrado
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300">
-                  {formatCurrency(totalCobrado)}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-slate-200 bg-amber-100/80 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">
-              <CardHeader>
-                <CardTitle className="text-sm uppercase tracking-[0.24em] text-amber-700">
-                  Pendiente
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold text-amber-900 dark:text-amber-300">
-                  {formatCurrency(totalPendiente)}
-                </p>
-              </CardContent>
-            </Card>
+          <div className="space-y-2">
+            <p className="text-md font-semibold uppercase tracking-[0.24em] text-amber-700 dark:text-amber-400">
+              Total pendiente por cobrar
+            </p>
+            <p className="text-lg font-semibold tracking-tight text-amber-900 dark:text-amber-200">
+              {formatCurrency(totalPendiente)}
+            </p>
           </div>
         </section>
 
@@ -306,14 +248,8 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
             <Table className="w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead>
-                    <input type="checkbox" aria-label="select all" />
-                  </TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Tiendas</TableHead>
-                  <TableHead>Camisetas</TableHead>
-                  <TableHead className="text-right">Cobrado</TableHead>
-                  <TableHead className="text-right">Pendiente</TableHead>
+                  <TableHead className="text-right">Total Pendiente</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -323,72 +259,43 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
                   const end = start + pageSize;
                   return customersWithTotals
                     .slice(start, end)
-                    .map(
-                      ({
-                        customer,
-                        cobrado,
-                        pendiente,
-                        tiendas,
-                        camisetas,
-                      }) => (
-                        <TableRow key={customer.id}>
-                          <TableCell>
-                            <input
-                              type="checkbox"
-                              aria-label={`select-${customer.id}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-4">
-                              <div className="grid h-10 w-10 place-items-center rounded-xl bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-slate-50">
-                                <span>🏬</span>
-                              </div>
-                              <div>
-                                <div className="font-semibold">
-                                  {customer.name}
-                                </div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                  {customer.email}
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{tiendas}</TableCell>
-                          <TableCell>{camisetas}</TableCell>
-                          <TableCell className="text-right text-emerald-800 dark:text-emerald-300">
-                            {formatCurrency(cobrado)}
-                          </TableCell>
-                          <TableCell className="text-right text-amber-800 dark:text-amber-300">
-                            {formatCurrency(pendiente)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="secondary"
-                                onClick={() =>
-                                  router.push(`/customers/${customer.id}`)
-                                }
-                              >
-                                Ver
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                onClick={() => openEditDialog(customer)}
-                              >
-                                Editar
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-300 dark:hover:bg-red-950"
-                                onClick={() => handleDeleteCustomer(customer)}
-                              >
-                                Eliminar
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ),
-                    );
+                    .map(({ customer, pendiente }) => (
+                      <TableRow key={customer.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-4">
+                            <div className="font-semibold">{customer.name}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right text-amber-800 dark:text-amber-300">
+                          {formatCurrency(pendiente)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="secondary"
+                              onClick={() =>
+                                router.push(`/customers/${customer.id}`)
+                              }
+                            >
+                              Ver
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              onClick={() => openEditDialog(customer)}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-300 dark:hover:bg-red-950"
+                              onClick={() => handleDeleteCustomer(customer)}
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ));
                 })()}
               </TableBody>
             </Table>

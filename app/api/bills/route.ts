@@ -23,18 +23,7 @@ export async function POST(request: Request) {
         paidAmount: 0,
         status: "pending",
         store: { connect: { id: storeId } },
-        products: products
-          ? {
-              create: products.map((p) => ({
-                name: p.name ?? `Item`,
-                quantity: p.quantity ?? 0,
-                description: p.description ?? null,
-                price: p.price,
-              })),
-            }
-          : undefined,
       },
-      include: { products: true },
     });
 
     return NextResponse.json({ bill });

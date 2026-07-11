@@ -8,9 +8,14 @@ async function getCustomers(): Promise<CustomerWithRelations[]> {
     include: {
       stores: {
         include: {
+          products: {
+            include: {
+              paidHistory: true,
+            },
+          },
           bills: {
             include: {
-              products: true,
+              paidHistory: true,
             },
           },
         },

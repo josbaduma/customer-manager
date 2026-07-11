@@ -27,9 +27,10 @@ export async function POST(request: Request) {
     include: {
       stores: {
         include: {
+          products: true,
           bills: {
             include: {
-              products: true,
+              paidHistory: true,
             },
           },
         },
@@ -38,4 +39,32 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ customer });
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const search = url.searchParams.get("search")?.trim();
+
+  const customers = await prisma.customer.findMany({
+    where: {
+      deletedAt: null,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      stores: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  return NextResponse.json({ customers });
 }
