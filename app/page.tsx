@@ -1,4 +1,4 @@
-import prisma from "../lib/prisma";
+import prisma from "@/lib/prisma";
 import { CustomerDashboard, type CustomerWithRelations } from "./components/customer-dashboard";
 
 async function getCustomers(): Promise<CustomerWithRelations[]> {
