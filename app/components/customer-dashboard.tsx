@@ -65,12 +65,12 @@ function formatCurrency(value: number) {
 }
 
 interface CustomerDashboardProps {
-  customers: CustomerWithRelations[];
+  customers?: CustomerWithRelations[];
 }
 
 export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   const [customerList, setCustomerList] =
-    React.useState<CustomerWithRelations[]>(customers);
+    React.useState<CustomerWithRelations[]>(customers ?? []);
   const [openDialog, setOpenDialog] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit">(
     "create",
@@ -80,8 +80,38 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [isLoading, setIsLoading] = React.useState(!customers);
   const pageSize = 5;
   const router = useRouter();
+
+  React.useEffect(() => {
+    const loadCustomers = async () => {
+      if (customers) {
+        setCustomerList(customers);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/customers", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("No se pudieron cargar los clientes.");
+        }
+
+        const data = await response.json();
+        setCustomerList(data.customers as CustomerWithRelations[]);
+      } catch {
+        setError("No se pudieron cargar los clientes desde la API.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadCustomers();
+  }, [customers]);
 
   const openCreateDialog = () => {
     setDialogMode("create");
@@ -245,110 +275,118 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
           </div>
 
           <div className="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Total Pendiente</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(() => {
-                  const start = (currentPage - 1) * pageSize;
-                  const end = start + pageSize;
-                  return customersWithTotals
-                    .slice(start, end)
-                    .map(({ customer, pendiente }) => (
-                      <TableRow key={customer.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-4">
-                            <div className="font-semibold">{customer.name}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right text-amber-800 dark:text-amber-300">
-                          {formatCurrency(pendiente)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="secondary"
-                              onClick={() =>
-                                router.push(`/customers/${customer.id}`)
-                              }
-                            >
-                              Ver
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              onClick={() => openEditDialog(customer)}
-                            >
-                              Editar
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-300 dark:hover:bg-red-950"
-                              onClick={() => handleDeleteCustomer(customer)}
-                            >
-                              Eliminar
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ));
-                })()}
-              </TableBody>
-            </Table>
+            {isLoading ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Cargando clientes desde la API...
+              </p>
+            ) : (
+              <>
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead className="text-right">Total Pendiente</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const start = (currentPage - 1) * pageSize;
+                      const end = start + pageSize;
+                      return customersWithTotals
+                        .slice(start, end)
+                        .map(({ customer, pendiente }) => (
+                          <TableRow key={customer.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-4">
+                                <div className="font-semibold">{customer.name}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right text-amber-800 dark:text-amber-300">
+                              {formatCurrency(pendiente)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="secondary"
+                                  onClick={() =>
+                                    router.push(`/customers/${customer.id}`)
+                                  }
+                                >
+                                  Ver
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => openEditDialog(customer)}
+                                >
+                                  Editar
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-300 dark:hover:bg-red-950"
+                                  onClick={() => handleDeleteCustomer(customer)}
+                                >
+                                  Eliminar
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ));
+                    })()}
+                  </TableBody>
+                </Table>
 
-            <div className="mt-4 flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
-              <div>
-                Mostrando{" "}
-                {Math.min(
-                  customersWithTotals.length,
-                  (currentPage - 1) * pageSize + 1,
-                )}{" "}
-                - {Math.min(customersWithTotals.length, currentPage * pageSize)}{" "}
-                de {customersWithTotals.length} clientes
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                >
-                  Anterior
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({
-                    length: Math.max(
-                      1,
-                      Math.ceil(customersWithTotals.length / pageSize),
-                    ),
-                  }).map((_, i) => {
-                    const page = i + 1;
-                    return (
-                      <Button
-                        key={page}
-                        variant={page === currentPage ? undefined : "secondary"}
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {page}
-                      </Button>
-                    );
-                  })}
+                <div className="mt-4 flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
+                  <div>
+                    Mostrando{" "}
+                    {Math.min(
+                      customersWithTotals.length,
+                      (currentPage - 1) * pageSize + 1,
+                    )}{" "}
+                    - {Math.min(customersWithTotals.length, currentPage * pageSize)}{" "}
+                    de {customersWithTotals.length} clientes
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    >
+                      Anterior
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({
+                        length: Math.max(
+                          1,
+                          Math.ceil(customersWithTotals.length / pageSize),
+                        ),
+                      }).map((_, i) => {
+                        const page = i + 1;
+                        return (
+                          <Button
+                            key={page}
+                            variant={page === currentPage ? undefined : "secondary"}
+                            onClick={() => setCurrentPage(page)}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      disabled={
+                        currentPage >=
+                        Math.ceil(customersWithTotals.length / pageSize)
+                      }
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  variant="secondary"
-                  disabled={
-                    currentPage >=
-                    Math.ceil(customersWithTotals.length / pageSize)
-                  }
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </section>
       </main>
