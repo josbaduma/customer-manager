@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const body = await request.json();
   const { name, email, phone } = body as {
@@ -62,6 +64,18 @@ export async function GET(request: Request) {
       stores: {
         where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
+        include: {
+          products: {
+            include: {
+              paidHistory: true,
+            },
+          },
+          bills: {
+            include: {
+              paidHistory: true,
+            },
+          },
+        },
       },
     },
   });
