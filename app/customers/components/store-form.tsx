@@ -26,10 +26,12 @@ export default function StoreForm({
   customerId,
   store,
   triggerLabel,
+  onStoreChanged,
 }: {
   customerId: number;
   store?: Store;
   triggerLabel?: string;
+  onStoreChanged?: () => void | Promise<void>;
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -71,6 +73,7 @@ export default function StoreForm({
       }
 
       setOpen(false);
+      await onStoreChanged?.();
       router.refresh();
     } catch (err) {
       setError("No se pudo conectar con el servidor.");
@@ -93,6 +96,7 @@ export default function StoreForm({
       }
 
       setOpen(false);
+      await onStoreChanged?.();
       router.refresh();
     } catch {
       setError("No se pudo conectar con el servidor.");
