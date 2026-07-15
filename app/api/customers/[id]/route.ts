@@ -24,6 +24,7 @@ export async function GET(
         where: { deletedAt: null },
         include: {
           products: {
+            where: { deletedAt: null },
             include: {
               paidHistory: true,
             },

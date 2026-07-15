@@ -66,6 +66,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
         include: {
           products: {
+            where: { deletedAt: null },
             include: {
               paidHistory: true,
             },

@@ -39,6 +39,7 @@ type EditableProduct = {
 
 interface EditableProductsTableProps {
   stores: StoreRow[];
+  onStoreChanged?: () => void | Promise<void>;
 }
 
 function getPendingAmount(product: ProductWithQuantity) {
@@ -71,7 +72,7 @@ function toEditableProduct(product: ProductWithQuantity): EditableProduct {
   };
 }
 
-export function EditableProductsTable({ stores }: EditableProductsTableProps) {
+export function EditableProductsTable({ stores, onStoreChanged }: EditableProductsTableProps) {
   const [storeRows, setStoreRows] = useState(() =>
     stores.map((store) => ({
       ...store,
@@ -87,6 +88,9 @@ export function EditableProductsTable({ stores }: EditableProductsTableProps) {
   );
 
   const [savingProductIds, setSavingProductIds] = useState<
+    Record<number, boolean>
+  >({});
+  const [deletingProductIds, setDeletingProductIds] = useState<
     Record<number, boolean>
   >({});
   const [addingStoreIds, setAddingStoreIds] = useState<Record<number, boolean>>(
@@ -229,6 +233,45 @@ export function EditableProductsTable({ stores }: EditableProductsTableProps) {
       console.error(error);
     } finally {
       setSavingProductIds((prev) => ({ ...prev, [product.id]: false }));
+      onStoreChanged?.();
+    }
+  }
+
+  async function deleteProduct(storeId: number, product: EditableProduct) {
+    if (!window.confirm(`¿Eliminar el producto ${product.name}?`)) {
+      return;
+    }
+
+    setDeletingProductIds((prev) => ({ ...prev, [product.id]: true }));
+
+    try {
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        console.error(result.error ?? "No se pudo eliminar el producto.");
+        return;
+      }
+
+      setStoreRows((prev) =>
+        prev.map((store) => {
+          if (store.id !== storeId) {
+            return store;
+          }
+
+          return {
+            ...store,
+            products: store.products.filter((item) => item.id !== product.id),
+          };
+        }),
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setDeletingProductIds((prev) => ({ ...prev, [product.id]: false }));
+      onStoreChanged?.();
     }
   }
 
@@ -243,14 +286,14 @@ export function EditableProductsTable({ stores }: EditableProductsTableProps) {
           <Table className="min-w-full table-auto sm:table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-1/10">#</TableHead>
-                <TableHead className="w-3/10">Nombre</TableHead>
-                <TableHead className="w-1/10">Unidades</TableHead>
-                <TableHead className="w-1/10">Precio</TableHead>
-                <TableHead className="w-1/10">Total</TableHead>
-                <TableHead className="w-1/10">Pendiente</TableHead>
-                <TableHead className="w-1/10">Abono</TableHead>
-                <TableHead className="w-1/10">Acciones</TableHead>
+                <TableHead className="w-1/11">#</TableHead>
+                <TableHead className="w-3/11">Nombre</TableHead>
+                <TableHead className="w-1/11">Unidades</TableHead>
+                <TableHead className="w-1/11">Precio</TableHead>
+                <TableHead className="w-1/11">Total</TableHead>
+                <TableHead className="w-1/11">Pendiente</TableHead>
+                <TableHead className="w-1/11">Abono</TableHead>
+                <TableHead className="w-2/11">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -335,11 +378,21 @@ export function EditableProductsTable({ stores }: EditableProductsTableProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => saveProduct(store.id, product)}
-                        disabled={savingProductIds[product.id]}
+                        disabled={savingProductIds[product.id] || deletingProductIds[product.id]}
                       >
                         {savingProductIds[product.id]
                           ? "Guardando..."
                           : "Guardar"}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteProduct(store.id, product)}
+                        disabled={savingProductIds[product.id] || deletingProductIds[product.id]}
+                      >
+                        {deletingProductIds[product.id]
+                          ? "Eliminando..."
+                          : "Eliminar"}
                       </Button>
                     </div>
                   </TableCell>
