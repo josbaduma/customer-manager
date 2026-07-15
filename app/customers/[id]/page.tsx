@@ -179,6 +179,7 @@ export default function CustomerPage() {
               location: store.location,
               products: store.products,
             }))}
+            onStoreChanged={loadCustomer}
           />
         </section>
         {/* <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-950 dark:shadow-none">

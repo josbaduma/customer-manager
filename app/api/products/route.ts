@@ -68,6 +68,7 @@ export async function GET(request: Request) {
 
   const products = await prisma.product.findMany({
     where: {
+      deletedAt: null,
       ...(storeId > 0 ? { store_id: storeId } : {}),
       ...(search
         ? {

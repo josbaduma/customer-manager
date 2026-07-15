@@ -1,6 +1,38 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const productId = Number(id);
+
+  if (Number.isNaN(productId)) {
+    return NextResponse.json({ error: "ID de producto inválido." }, { status: 400 });
+  }
+
+  const existingProduct = await prisma.product.findFirst({
+    where: { id: productId, deletedAt: null },
+  });
+
+  if (!existingProduct) {
+    return NextResponse.json({ error: "Producto no encontrado." }, { status: 404 });
+  }
+
+  try {
+    const product = await prisma.product.update({
+      where: { id: productId },
+      data: { deletedAt: new Date() },
+    });
+
+    return NextResponse.json({ product });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "No se pudo eliminar el producto." }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -47,6 +79,14 @@ export async function PATCH(
   }
 
   try {
+    const existingProduct = await prisma.product.findFirst({
+      where: { id: productId, deletedAt: null },
+    });
+
+    if (!existingProduct) {
+      return NextResponse.json({ error: "Producto no encontrado." }, { status: 404 });
+    }
+
     // If a payment is provided, create a paid-history record.
     if (typeof paymentAmount === "number" && paymentAmount > 0) {
       await prisma.productPaidHistory.create({

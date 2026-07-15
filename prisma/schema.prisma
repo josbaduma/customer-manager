@@ -62,6 +62,7 @@ model Product {
   paidHistory ProductPaidHistory[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
+  deletedAt   DateTime?
 }
 
 model Bill {
