@@ -1,6 +1,54 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const customerId = Number(id);
+
+  if (Number.isNaN(customerId)) {
+    return NextResponse.json(
+      { error: "ID de cliente inválido." },
+      { status: 400 },
+    );
+  }
+
+  const customer = await prisma.customer.findFirst({
+    where: { id: customerId, deletedAt: null },
+    include: {
+      stores: {
+        where: { deletedAt: null },
+        include: {
+          products: {
+            where: { deletedAt: null },
+            include: {
+              paidHistory: true,
+            },
+          },
+          bills: {
+            include: {
+              paidHistory: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!customer) {
+    return NextResponse.json(
+      { error: "Cliente no encontrado." },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json({ customer });
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
