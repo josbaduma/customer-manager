@@ -72,7 +72,10 @@ function toEditableProduct(product: ProductWithQuantity): EditableProduct {
   };
 }
 
-export function EditableProductsTable({ stores, onStoreChanged }: EditableProductsTableProps) {
+export function EditableProductsTable({
+  stores,
+  onStoreChanged,
+}: EditableProductsTableProps) {
   const [storeRows, setStoreRows] = useState(() =>
     stores.map((store) => ({
       ...store,
@@ -96,7 +99,13 @@ export function EditableProductsTable({ stores, onStoreChanged }: EditableProduc
   const [addingStoreIds, setAddingStoreIds] = useState<Record<number, boolean>>(
     {},
   );
-  const [productPayments, setProductPayments] = useState<Record<number, number>>({});
+  const [deletingStoreIds, setDeletingStoreIds] = useState<
+    Record<number, boolean>
+  >({});
+
+  const [productPayments, setProductPayments] = useState<
+    Record<number, number>
+  >({});
 
   function updateProduct(
     storeId: number,
@@ -155,8 +164,10 @@ export function EditableProductsTable({ stores, onStoreChanged }: EditableProduc
 
       const createdProduct = result.product as ProductWithQuantity;
       const editableProduct = toEditableProduct(createdProduct);
-      const pendingFromServer = (result.pending as number) ?? editableProduct.pending;
-      const paidTotalFromServer = (result.paidTotal as number) ?? editableProduct.paidTotal;
+      const pendingFromServer =
+        (result.pending as number) ?? editableProduct.pending;
+      const paidTotalFromServer =
+        (result.paidTotal as number) ?? editableProduct.paidTotal;
       editableProduct.pending = pendingFromServer;
       editableProduct.paidTotal = paidTotalFromServer;
 
@@ -206,7 +217,9 @@ export function EditableProductsTable({ stores, onStoreChanged }: EditableProduc
           name: product.name,
           quantity: product.quantity,
           price: product.price,
-          ...(typeof paymentAmount === "number" && paymentAmount > 0 ? { paymentAmount } : {}),
+          ...(typeof paymentAmount === "number" && paymentAmount > 0
+            ? { paymentAmount }
+            : {}),
         }),
       });
 
@@ -275,13 +288,59 @@ export function EditableProductsTable({ stores, onStoreChanged }: EditableProduc
     }
   }
 
+  async function deleteStore(storeId: number) {
+    if (!window.confirm("¿Eliminar la tienda y todos sus productos?")) {
+      return;
+    }
+
+    setDeletingStoreIds((prev) => ({ ...prev, [storeId]: true }));
+
+    try {
+      const response = await fetch(`/api/stores/${storeId}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        console.error(result.error ?? "No se pudo eliminar la tienda.");
+        return;
+      }
+
+      setStoreRows((prev) => prev.filter((store) => store.id !== storeId));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setDeletingStoreIds((prev) => ({ ...prev, [storeId]: false }));
+      onStoreChanged?.();
+    }
+  }
+
   return (
     <div className="space-y-8">
       {storeRows.map((store, index) => (
         <div key={store.id} className="mb-8">
           {index > 0 ? <Separator className="my-8" /> : null}
           <div className="mb-4 text-md text-slate-500 dark:text-slate-400">
-            <p>{store.name}</p>
+            <div className="flex flex-row justify-between gap-2">
+              <div>
+                <p>{store.name}</p>
+              </div>
+              <div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => deleteStore(store.id)}
+                  disabled={
+                    addingStoreIds[store.id] ||
+                    deletingStoreIds[store.id]
+                  }
+                >
+                  {deletingStoreIds[store.id]
+                    ? "Eliminando..."
+                    : "Eliminar"}
+                </Button>
+              </div>
+            </div>
           </div>
           <Table className="min-w-full table-auto sm:table-fixed">
             <TableHeader>
@@ -330,7 +389,10 @@ export function EditableProductsTable({ stores, onStoreChanged }: EditableProduc
                         updateProduct(store.id, product.id, {
                           quantity: safeQuantity,
                           total: product.price * safeQuantity,
-                          pending: Math.max(0, product.price * safeQuantity - product.paidTotal),
+                          pending: Math.max(
+                            0,
+                            product.price * safeQuantity - product.paidTotal,
+                          ),
                         });
                       }}
                     />
@@ -378,7 +440,10 @@ export function EditableProductsTable({ stores, onStoreChanged }: EditableProduc
                         variant="ghost"
                         size="sm"
                         onClick={() => saveProduct(store.id, product)}
-                        disabled={savingProductIds[product.id] || deletingProductIds[product.id]}
+                        disabled={
+                          savingProductIds[product.id] ||
+                          deletingProductIds[product.id]
+                        }
                       >
                         {savingProductIds[product.id]
                           ? "Guardando..."
@@ -388,7 +453,10 @@ export function EditableProductsTable({ stores, onStoreChanged }: EditableProduc
                         variant="destructive"
                         size="sm"
                         onClick={() => deleteProduct(store.id, product)}
-                        disabled={savingProductIds[product.id] || deletingProductIds[product.id]}
+                        disabled={
+                          savingProductIds[product.id] ||
+                          deletingProductIds[product.id]
+                        }
                       >
                         {deletingProductIds[product.id]
                           ? "Eliminando..."
