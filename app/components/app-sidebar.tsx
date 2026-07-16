@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import { Home, Settings, UserRound } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Home, LogOut, UserRound } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -32,6 +35,13 @@ const navigationItems = [
 ];
 
 export function AppSidebar() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  };
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
@@ -75,10 +85,14 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-slate-200 px-4 py-3 dark:border-slate-800">
-        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-          <Settings className="h-4 w-4" />
-          <span>Configuración</span>
-        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Cerrar sesión</span>
+        </button>
       </SidebarFooter>
     </Sidebar>
   );
