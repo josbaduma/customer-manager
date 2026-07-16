@@ -122,6 +122,7 @@ export function BillActionsDropdown({ bill }: { bill: Bill }) {
                     <TableRow key={item.id}>
                       <TableCell>
                         {new Date(item.createdAt).toLocaleString("es-CR", {
+                          timeZone: "America/Costa_Rica",
                           dateStyle: "medium",
                           timeStyle: "short",
                         })}
