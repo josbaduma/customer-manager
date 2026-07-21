@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableHeader,
@@ -71,6 +72,8 @@ interface CustomerDashboardProps {
 export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   const [customerList, setCustomerList] =
     React.useState<CustomerWithRelations[]>(customers ?? []);
+  const [allCustomerList, setAllCustomerList] =
+    React.useState<CustomerWithRelations[]>(customers ?? []);
   const [openDialog, setOpenDialog] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit">(
     "create",
@@ -81,37 +84,68 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [isLoading, setIsLoading] = React.useState(!customers);
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
   const pageSize = 5;
   const router = useRouter();
 
-  React.useEffect(() => {
-    const loadCustomers = async () => {
+  const loadCustomers = React.useCallback(
+    async (term = "") => {
       if (customers) {
         setCustomerList(customers);
+        setAllCustomerList(customers);
         setIsLoading(false);
         return;
       }
 
+      setIsLoading(true);
+      setError(null);
+
       try {
-        const response = await fetch("/api/customers", {
-          cache: "no-store",
-        });
+        const query = term.trim();
+        const response = await fetch(
+          `/api/customers${query ? `?search=${encodeURIComponent(query)}` : ""}`,
+          {
+            cache: "no-store",
+          },
+        );
 
         if (!response.ok) {
           throw new Error("No se pudieron cargar los clientes.");
         }
 
         const data = await response.json();
-        setCustomerList(data.customers as CustomerWithRelations[]);
+        const fetchedCustomers = data.customers as CustomerWithRelations[];
+        setCustomerList(fetchedCustomers);
+
+        if (!query) {
+          setAllCustomerList(fetchedCustomers);
+        }
       } catch {
         setError("No se pudieron cargar los clientes desde la API.");
       } finally {
         setIsLoading(false);
       }
-    };
+    },
+    [customers],
+  );
 
-    void loadCustomers();
-  }, [customers]);
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSearchQuery(searchTerm.trim());
+      setCurrentPage(1);
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadCustomers(searchQuery);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadCustomers, searchQuery]);
 
   const openCreateDialog = () => {
     setDialogMode("create");
@@ -175,14 +209,21 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
 
       if (dialogMode === "create") {
         setCustomerList((current) => [updatedCustomer, ...current]);
+        setAllCustomerList((current) => [updatedCustomer, ...current]);
       } else {
         setCustomerList((current) =>
           current.map((customer) =>
             customer.id === updatedCustomer.id ? updatedCustomer : customer,
           ),
         );
+        setAllCustomerList((current) =>
+          current.map((customer) =>
+            customer.id === updatedCustomer.id ? updatedCustomer : customer,
+          ),
+        );
       }
 
+      await loadCustomers(searchQuery);
       closeDialog();
     } catch {
       setError("No se pudo conectar con el servidor.");
@@ -208,13 +249,33 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
         return;
       }
 
-      setCustomerList((current) =>
+      setAllCustomerList((current) =>
         current.filter((item) => item.id !== customer.id),
       );
+      await loadCustomers(searchQuery);
     } catch {
       setError("No se pudo conectar con el servidor.");
     }
   };
+
+  const calculatePendingTotal = (customers: CustomerWithRelations[]) =>
+    customers.reduce((customerSum, customer) => {
+      const pendiente = customer.stores.reduce((storeSum, store) => {
+        const storePending = store.products.reduce((productSum, product) => {
+          const total = product.price * (product.quantity ?? 0);
+          const paidTotal = (product.paidHistory ?? []).reduce(
+            (historySum, entry) => historySum + (entry.amountPaid ?? 0),
+            0,
+          );
+
+          return productSum + Math.max(0, total - paidTotal);
+        }, 0);
+
+        return storeSum + storePending;
+      }, 0);
+
+      return customerSum + pendiente;
+    }, 0);
 
   const customersWithTotals = customerList.map((customer) => {
     const pendiente = customer.stores.reduce((storeSum, store) => {
@@ -238,10 +299,8 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
     };
   });
 
-  const totalPendiente = customersWithTotals.reduce(
-    (sum, item) => sum + item.pendiente,
-    0,
-  );
+  const totalPendiente = calculatePendingTotal(allCustomerList);
+  const pageCount = Math.max(1, Math.ceil(customersWithTotals.length / pageSize));
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
@@ -271,7 +330,24 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
                 Detalles de facturación y tiendas por cliente.
               </p>
             </div>
-            <Button onClick={openCreateDialog}>Nuevo cliente</Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setSearchQuery(searchTerm.trim());
+                  setCurrentPage(1);
+                }}
+                className="w-full sm:w-72"
+              >
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar por nombre o correo"
+                  className="bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-700"
+                />
+              </form>
+              <Button onClick={openCreateDialog}>Nuevo cliente</Button>
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -293,6 +369,20 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
                     {(() => {
                       const start = (currentPage - 1) * pageSize;
                       const end = start + pageSize;
+
+                      if (customersWithTotals.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell
+                              colSpan={3}
+                              className="py-8 text-center text-sm text-slate-500 dark:text-slate-400"
+                            >
+                              No se encontraron clientes con esa búsqueda.
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
                       return customersWithTotals
                         .slice(start, end)
                         .map(({ customer, pendiente }) => (
@@ -355,12 +445,7 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
                       Anterior
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({
-                        length: Math.max(
-                          1,
-                          Math.ceil(customersWithTotals.length / pageSize),
-                        ),
-                      }).map((_, i) => {
+                      {Array.from({ length: pageCount }).map((_, i) => {
                         const page = i + 1;
                         return (
                           <Button
@@ -375,10 +460,7 @@ export function CustomerDashboard({ customers }: CustomerDashboardProps) {
                     </div>
                     <Button
                       variant="secondary"
-                      disabled={
-                        currentPage >=
-                        Math.ceil(customersWithTotals.length / pageSize)
-                      }
+                      disabled={currentPage >= pageCount}
                       onClick={() => setCurrentPage((p) => p + 1)}
                     >
                       Siguiente
